@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2007, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,46 +32,58 @@
 
 /**
  * \file
- *         A quick program for testing the light ziglet driver in the Z1 platform
+ *         Best-effort single-hop unicast example
  * \author
- *         Antonio Lignan <alinan@zolertia.com>
+ *         Adam Dunkels <adam@sics.se>
  */
 
-#include <stdio.h>
 #include "contiki.h"
-#include "dev/i2cmaster.h"
-#include "dev/light-ziglet.h"
+#include "net/rime/rime.h"
 
-#if 1
-#define PRINTF(...) printf(__VA_ARGS__)
-#else
-#define PRINTF(...)
-#endif
+#include "dev/button-sensor.h"
 
-#define SENSOR_READ_INTERVAL (CLOCK_SECOND / 2)
+#include "dev/leds.h"
 
-PROCESS(test_process, "Test light ziglet process");
-AUTOSTART_PROCESSES(&test_process);
+#include <stdio.h>
+
 /*---------------------------------------------------------------------------*/
-static struct etimer et;
-
-PROCESS_THREAD(test_process, ev, data)
+PROCESS(example_unicast_process, "Example unicast");
+AUTOSTART_PROCESSES(&example_unicast_process);
+/*---------------------------------------------------------------------------*/
+static void
+recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
+  printf("unicast message received from %d.%d\n",
+	 from->u8[0], from->u8[1]);
+}
+static const struct unicast_callbacks unicast_callbacks = {recv_uc};
+static struct unicast_conn uc;
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(example_unicast_process, ev, data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+    
   PROCESS_BEGIN();
 
-  uint16_t light;
-
-  /* Initialize driver and set a slower data rate */
-
-  light_ziglet_init();
-  i2c_setrate(I2C_PRESC_100KHZ_LSB, I2C_PRESC_100KHZ_MSB);
+  unicast_open(&uc, 199, &unicast_callbacks);
 
   while(1) {
-    etimer_set(&et, SENSOR_READ_INTERVAL);
+    static struct etimer et;
+    linkaddr_t addr;
+    
+    etimer_set(&et, CLOCK_SECOND);
+    
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
-    light = light_ziglet_read();
-    PRINTF("Light = %u\n", light);
+    //packetbuf_copyfrom("Enric Here!", 12);
+    //addr.u8[0] = 200;
+    //addr.u8[1] = 0;
+    //if(!linkaddr_cmp(&addr, &linkaddr_node_addr)) {
+      //unicast_send(&uc, &addr);
+    //}
+
   }
+
   PROCESS_END();
 }
+/*---------------------------------------------------------------------------*/

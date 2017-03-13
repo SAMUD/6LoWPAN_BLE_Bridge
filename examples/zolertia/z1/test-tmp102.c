@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016, Zolertia <http://www.zolertia.com>
+ * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,41 +29,71 @@
  * This file is part of the Contiki operating system.
  *
  */
-/*---------------------------------------------------------------------------*/
+
 /**
  * \file
- *         A quick program for testing the tmp102 sensor in the Z1 platform
+ *         A quick program for testing the tmp102 driver in the Z1 platform
  * \author
  *         Enric M. Calvo <ecalvo@zolertia.com>
- *         Antonio Lignan <alinan@zolertia.com>
  */
-/*---------------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include "contiki.h"
 #include "dev/i2cmaster.h"
 #include "dev/tmp102.h"
-/*---------------------------------------------------------------------------*/
-#define TMP102_READ_INTERVAL (CLOCK_SECOND / 2)
-/*---------------------------------------------------------------------------*/
-PROCESS(temp_process, "TMP102 Temperature sensor process");
+
+
+#if 1
+#define PRINTF(...) printf(__VA_ARGS__)
+#else
+#define PRINTF(...)
+#endif
+
+
+#if 0
+#define PRINTFDEBUG(...) printf(__VA_ARGS__)
+#else
+#define PRINTFDEBUG(...)
+#endif
+
+
+#define TMP102_READ_INTERVAL (CLOCK_SECOND/2)
+
+PROCESS(temp_process, "Test Temperature process");
 AUTOSTART_PROCESSES(&temp_process);
 /*---------------------------------------------------------------------------*/
 static struct etimer et;
-/*---------------------------------------------------------------------------*/
+
 PROCESS_THREAD(temp_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  int16_t temp;
+  int16_t tempint;
+  uint16_t tempfrac;
+  int16_t raw;
+  uint16_t absraw;
+  int16_t sign;
+  char minus = ' ';
 
-  SENSORS_ACTIVATE(tmp102);
+  tmp102_init();
 
   while(1) {
     etimer_set(&et, TMP102_READ_INTERVAL);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-    temp = tmp102.value(TMP102_READ);
-    printf("Temp = %d\n", temp);
+
+    sign = 1;
+
+    PRINTFDEBUG("Reading Temp...\n");
+    raw = tmp102_read_temp_raw();
+    absraw = raw;
+    if(raw < 0) {		// Perform 2C's if sensor returned negative data
+      absraw = (raw ^ 0xFFFF) + 1;
+      sign = -1;
+    }
+    tempint = (absraw >> 8) * sign;
+    tempfrac = ((absraw >> 4) % 16) * 625;	// Info in 1/10000 of degree
+    minus = ((tempint == 0) & (sign == -1)) ? '-' : ' ';
+    PRINTF("Temp = %c%d.%04d\n", minus, tempint, tempfrac);
   }
   PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/

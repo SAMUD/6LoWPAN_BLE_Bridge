@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2015, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,53 +25,48 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * This file is part of the Contiki operating system.
- *
  */
 
-/**
- * \file
- *         A quick program for testing the light ziglet driver in the Z1 platform
- * \author
- *         Antonio Lignan <alinan@zolertia.com>
- */
+#ifndef PROJECT_CONF_H_
+#define PROJECT_CONF_H_
 
-#include <stdio.h>
-#include "contiki.h"
-#include "dev/i2cmaster.h"
-#include "dev/light-ziglet.h"
+#ifndef WITH_NON_STORING
+#define WITH_NON_STORING 0 /* Set this to run with non-storing mode */
+#endif /* WITH_NON_STORING */
 
-#if 1
-#define PRINTF(...) printf(__VA_ARGS__)
+#undef NBR_TABLE_CONF_MAX_NEIGHBORS
+#undef UIP_CONF_MAX_ROUTES
+
+#ifdef TEST_MORE_ROUTES
+/* configure number of neighbors and routes */
+#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
+#define UIP_CONF_MAX_ROUTES   30
 #else
-#define PRINTF(...)
+/* configure number of neighbors and routes */
+#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
+#define UIP_CONF_MAX_ROUTES   10
+#endif /* TEST_MORE_ROUTES */
+
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC     nullrdc_driver
+#undef NULLRDC_CONF_802154_AUTOACK
+#define NULLRDC_CONF_802154_AUTOACK       1
+
+/* Define as minutes */
+#define RPL_CONF_DEFAULT_LIFETIME_UNIT   60
+
+/* 10 minutes lifetime of routes */
+#define RPL_CONF_DEFAULT_LIFETIME        10
+
+#define RPL_CONF_DEFAULT_ROUTE_INFINITE_LIFETIME 1
+
+#if WITH_NON_STORING
+#undef RPL_NS_CONF_LINK_NUM
+#define RPL_NS_CONF_LINK_NUM 40 /* Number of links maintained at the root. Can be set to 0 at non-root nodes. */
+#undef UIP_CONF_MAX_ROUTES
+#define UIP_CONF_MAX_ROUTES 0 /* No need for routes */
+#undef RPL_CONF_MOP
+#define RPL_CONF_MOP RPL_MOP_NON_STORING /* Mode of operation*/
+#endif /* WITH_NON_STORING */
+
 #endif
-
-#define SENSOR_READ_INTERVAL (CLOCK_SECOND / 2)
-
-PROCESS(test_process, "Test light ziglet process");
-AUTOSTART_PROCESSES(&test_process);
-/*---------------------------------------------------------------------------*/
-static struct etimer et;
-
-PROCESS_THREAD(test_process, ev, data)
-{
-  PROCESS_BEGIN();
-
-  uint16_t light;
-
-  /* Initialize driver and set a slower data rate */
-
-  light_ziglet_init();
-  i2c_setrate(I2C_PRESC_100KHZ_LSB, I2C_PRESC_100KHZ_MSB);
-
-  while(1) {
-    etimer_set(&et, SENSOR_READ_INTERVAL);
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-
-    light = light_ziglet_read();
-    PRINTF("Light = %u\n", light);
-  }
-  PROCESS_END();
-}

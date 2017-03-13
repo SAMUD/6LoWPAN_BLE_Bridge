@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  */
-
+/*---------------------------------------------------------------------------*/
 /**
  * \file
  *         A simple example using HTTP to control and be controlled
@@ -35,7 +35,7 @@
  *         Niclas Finne <nfi@sics.se>
  *         Joakim Eriksson <joakime@sics.se>
  */
-
+/*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "dev/button-sensor.h"
 #include "dev/leds.h"
@@ -43,24 +43,22 @@
 #include "webserver-nogui.h"
 #include "httpd-simple.h"
 #include <stdio.h>
-
+/*---------------------------------------------------------------------------*/
 /* The address of the server to register the services for this node */
-#define SERVER       "aaaa::1"
+#define SERVER       "fd00::1"
 
 /* This command registers two services (/0 and /1) to turn the leds on or off */
 #define REGISTER_COMMAND "/r?p=0&d=Turn%20off%20leds&p=1&d=Turn%20on%20leds"
 
 /* The address of the other node to control */
-#define OTHER_NODE   "aaaa::212:7403:3:303"
+#define OTHER_NODE   "fd00::212:7403:3:303"
 
 /* The commands to send to the other node */
 #define SET_LEDS_ON  "/1"
 #define SET_LEDS_OFF "/0"
-
+/*---------------------------------------------------------------------------*/
 PROCESS(websense_remote_process, "Websense Remote");
-
 AUTOSTART_PROCESSES(&websense_remote_process);
-
 /*---------------------------------------------------------------------------*/
 static const char *TOP = "<html><head><title>Contiki Websense Remote</title></head><body>\n";
 static const char *BOTTOM = "</body></html>\n";
@@ -161,7 +159,6 @@ PROCESS_THREAD(websense_remote_process, ev, data)
       }
       /* Alternate between the two commands */
       mode = !mode;
-
     } else if(ev == PROCESS_EVENT_TIMER && etimer_expired(&timer)) {
       printf("Registering services\n");
       send_command(SERVER, REGISTER_COMMAND);

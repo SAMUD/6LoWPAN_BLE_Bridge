@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Zolertia(TM) is a trademark of Advancare,SL
+ * Copyright (c) 2010, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,52 +26,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * This file is part of the Contiki operating system.
- *
  */
 
-/**
- * \file
- *         A quick program for testing the light ziglet driver in the Z1 platform
- * \author
- *         Antonio Lignan <alinan@zolertia.com>
- */
+#ifndef PROJECT_RPL_WEB_CONF_H_
+#define PROJECT_RPL_WEB_CONF_H_
 
-#include <stdio.h>
-#include "contiki.h"
-#include "dev/i2cmaster.h"
-#include "dev/light-ziglet.h"
+#undef QUEUEBUF_CONF_NUM
+#define QUEUEBUF_CONF_NUM          4
 
-#if 1
-#define PRINTF(...) printf(__VA_ARGS__)
-#else
-#define PRINTF(...)
-#endif
+#undef UIP_CONF_BUFFER_SIZE
+#define UIP_CONF_BUFFER_SIZE    140
 
-#define SENSOR_READ_INTERVAL (CLOCK_SECOND / 2)
+#undef UIP_CONF_RECEIVE_WINDOW
+#define UIP_CONF_RECEIVE_WINDOW  60
 
-PROCESS(test_process, "Test light ziglet process");
-AUTOSTART_PROCESSES(&test_process);
-/*---------------------------------------------------------------------------*/
-static struct etimer et;
+#undef WEBSERVER_CONF_CFS_CONNS
+#define WEBSERVER_CONF_CFS_CONNS 2
 
-PROCESS_THREAD(test_process, ev, data)
-{
-  PROCESS_BEGIN();
-
-  uint16_t light;
-
-  /* Initialize driver and set a slower data rate */
-
-  light_ziglet_init();
-  i2c_setrate(I2C_PRESC_100KHZ_LSB, I2C_PRESC_100KHZ_MSB);
-
-  while(1) {
-    etimer_set(&et, SENSOR_READ_INTERVAL);
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-
-    light = light_ziglet_read();
-    PRINTF("Light = %u\n", light);
-  }
-  PROCESS_END();
-}
+#endif /* PROJECT_RPL_WEB_CONF_H_ */

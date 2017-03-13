@@ -32,50 +32,100 @@
 
 /**
  * \file
- *         An example of how to use the button and light sensor on
- *         the Z1 platform.
+ *         Best-effort single-hop unicast example
  * \author
- *         Joakim Eriksson <joakime@sics.se>
+ *         Adam Dunkels <adam@sics.se>
  */
 
-#include <stdio.h>
 #include "contiki.h"
+#include "net/rime/rime.h"
+
 #include "dev/button-sensor.h"
+
 #include "dev/leds.h"
-#include "dev/z1-phidgets.h"
+
+#include <stdio.h>
+#include "dev/i2cmaster.h"
+#include "dev/tmp102.h"
+
+#if 1
+#define PRINTF(...) printf(__VA_ARGS__)
+#else
+#define PRINTF(...)
+#endif
+
+
+#define SENDER 205
+#define RECEIVER 200
+
+
+#define PRINTFDEBUG(...)
+
+
+#define TMP102_READ_INTERVAL (CLOCK_SECOND/2)
+
+  int16_t  tempint;
+  uint16_t tempfrac;
+  int16_t  raw;
+  uint16_t absraw;
+  int16_t  sign;
+  char     minus = ' ';
 
 /*---------------------------------------------------------------------------*/
-PROCESS(test_button_process, "Test Button & Phidgets");
-AUTOSTART_PROCESSES(&test_button_process);
+PROCESS(example_unicast_process, "Example unicast");
+AUTOSTART_PROCESSES(&example_unicast_process);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(test_button_process, ev, data)
+static void
+recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
-  //static struct etimer et;
+  printf("unicast message received from %d.%d\n",
+     from->u8[0], from->u8[1]);
+}
+static const struct unicast_callbacks unicast_callbacks = {recv_uc};
+static struct unicast_conn uc;
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(example_unicast_process, ev, data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+   
   PROCESS_BEGIN();
-  SENSORS_ACTIVATE(phidgets);
+
+
+  tmp102_init();
+  linkaddr_t addr;
+  unicast_open(&uc, 133, &unicast_callbacks);
   SENSORS_ACTIVATE(button_sensor);
-
   while(1) {
-    //etimer_set(&et, CLOCK_SECOND/2);
-    printf("Please press the User Button\n");
-    PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event &&
-                             data == &button_sensor);
 
-    //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-    leds_toggle(LEDS_GREEN);
-    //printf("Button clicked\n");
-    printf("Phidget 5V 1:%d\n", phidgets.value(PHIDGET5V_1));
-    printf("Phidget 5V 2:%d\n", phidgets.value(PHIDGET5V_2));
-    printf("Phidget 3V 1:%d\n", phidgets.value(PHIDGET3V_1));
-    printf("Phidget 3V 2:%d\n", phidgets.value(PHIDGET3V_2));
+PROCESS_WAIT_EVENT_UNTIL(ev==sensors_event && data == &button_sensor);
+    sign = 1;
 
-    if (phidgets.value(PHIDGET3V_1) < 100) {
-      leds_on(LEDS_RED);
-    } else {
-      leds_off(LEDS_RED);
-    }
+    //PRINTFDEBUG ("Reading Temp...\n");
+    raw = tmp102_read_temp_raw();
+   
+        absraw = raw;
+        if (raw < 0) { // Perform 2C's if sensor returned negative data
+          absraw = (raw ^ 0xFFFF) + 1;
+          sign = -1;
+        }
+    tempint  = (absraw >> 8) * sign;
+        tempfrac = ((absraw>>4) % 16) * 625; // Info in 1/10000 of degree
+        minus = ((tempint == 0) & (sign == -1)) ? '-'  : ' ' ;
+    PRINTF ("Current Temp = %c%d.%04d\n", minus, tempint, tempfrac);
 
+  
+   
+    char s[30];
+    sprintf(s,"Temp is %c%d.%04d\n", minus, tempint, tempfrac);
+    printf("sending %s\n",s);
+    packetbuf_copyfrom(s, 30);
+    addr.u8[0] = RECEIVER;
+    addr.u8[1] = 0;
+       
+    unicast_send(&uc, &addr);
   }
+
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+

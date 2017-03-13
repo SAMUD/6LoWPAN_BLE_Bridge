@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  */
-
+/*---------------------------------------------------------------------------*/
 /**
  * \file
  *         Battery and Temperature IPv6 Demo for Zolertia Z1
@@ -37,7 +37,7 @@
  *         Joel Hoglund    <joel@sics.se>
  *         Enric M. Calvo  <ecalvo@zolertia.com>
  */
-
+/*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "httpd-simple.h"
 #include "webserver-nogui.h"
@@ -46,21 +46,46 @@
 #include "cc2420.h"
 #include "dev/leds.h"
 #include <stdio.h>
-
-
-float floor(float x){ 
-  if(x>=0.0f) return (float) ((int)x);
-  else        return (float) ((int)x-1);
+#include "net/ip/uip-debug.h"
+/*---------------------------------------------------------------------------*/
+float
+floor(float x)
+{
+  if(x >= 0.0f) {
+    return (float)((int)x);
+  } else { return (float)((int)x - 1);
+  }
 }
-
+/*---------------------------------------------------------------------------*/
 PROCESS(web_sense_process, "Sense Web Demo");
-
 AUTOSTART_PROCESSES(&web_sense_process);
-
+/*---------------------------------------------------------------------------*/
 #define HISTORY 16
 static int temperature[HISTORY];
 static int battery1[HISTORY];
 static int sensors_pos;
+
+static struct simple_udp_connection unicast_connection;
+#define UDP_PORT 1234
+
+
+
+static void
+receiver(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
+  printf("Data received from ");
+  uip_debug_ipaddr_print(sender_addr);
+  printf(" on port %d from port %d with length %d: '%s'\n",
+         receiver_port, sender_port, datalen, data);
+
+}
+
 
 /*---------------------------------------------------------------------------*/
 static int
@@ -74,10 +99,16 @@ get_temp(void)
 {
   return temperature_sensor.value(0);
 }
-
-static float get_mybatt(void){ return (float) ((get_battery()*2.500*2)/4096);}
-static float get_mytemp(void){ return (float) (((get_temp()*2.500)/4096)-0.986)*282;}
-
+static float
+get_mybatt(void)
+{
+  return (float)((get_battery() * 2.500 * 2) / 4096);
+}
+static float
+get_mytemp(void)
+{
+  return (float)(((get_temp() * 2.500) / 4096) - 0.986) * 282;
+}
 /*---------------------------------------------------------------------------*/
 static const char *TOP = "<html><head><title>Contiki Web Sense</title></head><body>\n";
 static const char *BOTTOM = "</body></html>\n";
@@ -85,11 +116,13 @@ static const char *BOTTOM = "</body></html>\n";
 /* Only one single request at time */
 static char buf[256];
 static int blen;
-#define ADD(...) do {                                                   \
-    blen += snprintf(&buf[blen], sizeof(buf) - blen, __VA_ARGS__);      \
-  } while(0)
+#define ADD(...) do { \
+    blen += snprintf(&buf[blen], sizeof(buf) - blen, __VA_ARGS__); \
+} while(0)
+/*---------------------------------------------------------------------------*/
 static void
-generate_chart(const char *title, const char *unit, int min, int max, int *values)
+generate_chart(const char *title, const char *unit, int min, int max,
+               int *values)
 {
   int i;
   blen = 0;
@@ -103,10 +136,15 @@ generate_chart(const char *title, const char *unit, int min, int max, int *value
   }
   ADD("\">");
 }
+/*---------------------------------------------------------------------------*/
 static
 PT_THREAD(send_values(struct httpd_state *s))
 {
-  PSOCK_BEGIN(&s->sout);
+	uip_ipaddr_t ipaddrLED;
+	uip_ipaddr_t *addr;
+	uint8_t LEDStatus = 0;
+
+	PSOCK_BEGIN(&s->sout);
 
   SEND_STRING(&s->sout, TOP);
 
@@ -120,21 +158,41 @@ PT_THREAD(send_values(struct httpd_state *s))
     ADD("<h1>Current readings</h1>\n"
         "Battery: %ld.%03d V<br>"
         "Temperature: %ld.%03d &deg; C",
-        (long) mybatt, (unsigned) ((mybatt-floor(mybatt))*1000), 
-        (long) mytemp, (unsigned) ((mytemp-floor(mytemp))*1000)); 
+        (long)mybatt, (unsigned)((mybatt - floor(mybatt)) * 1000),
+        (long)mytemp, (unsigned)((mytemp - floor(mytemp)) * 1000));
     SEND_STRING(&s->sout, buf);
-
-  } else if(s->filename[1] == '0') {
+  }
+  else if(s->filename[1] == '0')
+  {
     /* Turn off leds */
-    leds_off(LEDS_ALL);
-    SEND_STRING(&s->sout, "Turned off leds!");
+    leds_off(LEDS_BLUE);
+    SEND_STRING(&s->sout, "Turned off leds on Zolertia 2!");
+    //send to button
+    uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 2);
+    addr = &ipaddrLED;
+    simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
+    //send to led
+    uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 2+2);
+    addr = &ipaddrLED;
+    simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
 
-  } else if(s->filename[1] == '1') {
-    /* Turn on leds */
-    leds_on(LEDS_ALL);
-    SEND_STRING(&s->sout, "Turned on leds!");
-
-  } else {
+  }
+  else if(s->filename[1] == '1')
+  {
+  	/* Turn off leds */
+		leds_on(LEDS_BLUE);
+		SEND_STRING(&s->sout, "Turned on leds on Zolertia 2!");
+		LEDStatus=1;
+		//send to button
+		uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 2);
+		addr = &ipaddrLED;
+		simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
+		//send to led
+		uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 2+2);
+		addr = &ipaddrLED;
+		simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
+  }
+  else {
     if(s->filename[1] != 't') {
       generate_chart("Battery", "mV", 0, 4000, battery1);
       SEND_STRING(&s->sout, buf);
@@ -160,6 +218,10 @@ PROCESS_THREAD(web_sense_process, ev, data)
 {
   static struct etimer timer;
   PROCESS_BEGIN();
+
+  simple_udp_register(&unicast_connection, UDP_PORT,
+  	                      NULL, UDP_PORT, receiver);
+
   cc2420_set_txpower(31);
 
   sensors_pos = 0;
@@ -173,7 +235,7 @@ PROCESS_THREAD(web_sense_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
     etimer_reset(&timer);
 
-    battery1[sensors_pos] = get_mybatt()*1000;
+    battery1[sensors_pos] = get_mybatt() * 1000;
     temperature[sensors_pos] = get_mytemp();
     sensors_pos = (sensors_pos + 1) % HISTORY;
   }
