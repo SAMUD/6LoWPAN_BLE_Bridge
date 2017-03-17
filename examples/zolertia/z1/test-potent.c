@@ -29,17 +29,19 @@
  * This file is part of the Contiki operating system.
  *
  */
-/*---------------------------------------------------------------------------*/
+
 /**
  * \file
  *         Testing the Potentiometer in Zolertia Z1 Starter Platform.
  * \author
  *         Enric M. Calvo <ecalvo@zolertia.com>
  */
-/*---------------------------------------------------------------------------*/
+
 #include "contiki.h"
 #include "dev/potentiometer-sensor.h"
-#include <stdio.h>
+#include <stdio.h>		
+
+
 /*---------------------------------------------------------------------------*/
 PROCESS(test_potent_process, "Testing Potentiometer in Z1SP");
 AUTOSTART_PROCESSES(&test_potent_process);
@@ -61,4 +63,6 @@ PROCESS_THREAD(test_potent_process, ev, data)
 
   PROCESS_END();
 }
+
 /*---------------------------------------------------------------------------*/
+
