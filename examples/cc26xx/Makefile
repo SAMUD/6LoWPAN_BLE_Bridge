@@ -9,5 +9,5 @@ all: $(CONTIKI_PROJECT)
 CONTIKI_WITH_IPV6 = 1
 
 
-CONTIKI = /home/samuel/contiki
+CONTIKI = $(HOME)/contiki
 include $(CONTIKI)/Makefile.include
