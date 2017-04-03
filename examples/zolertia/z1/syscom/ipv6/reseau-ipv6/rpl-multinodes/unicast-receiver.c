@@ -70,28 +70,53 @@ receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  printf("Data received from ");
-  uip_debug_ipaddr_print(sender_addr);
-  printf(" on port %d from port %d with length %d: '%s'\n",
-         receiver_port, sender_port, datalen, data);
+	  printf("Data received from ");
+	  uip_debug_ipaddr_print(sender_addr);
+	  printf(" on port %d from port %d with length %d: '%s'\n",
+          receiver_port, sender_port, datalen, data);
 
-  //generate a temp adress
-  uip_ipaddr_t ipaddrSend;
-  uip_ipaddr_t ipaddrSender = *sender_addr;
-  uip_ip6addr(&ipaddrSend, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 2);
+	  //generate a temp adress
+	  uip_ipaddr_t ipaddrSend;
+	  uip_ipaddr_t ipaddrSendLaunchPad;
+	  uip_ipaddr_t ipaddrSender = *sender_addr;
 
+	  uip_ip6addr(&ipaddrSend, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0xb);
 
-  if(ipaddrSend.u16[6] == ipaddrSender.u16[6] && ipaddrSend.u16[5] == ipaddrSender.u16[5])
-  {
-  	printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
-  	if(*data == 0)
-  		leds_off(LEDS_BLUE);
-  	else if (*data == 1)
-  		leds_on(LEDS_BLUE);
+	  uip_ip6addr(&ipaddrSendLaunchPad, 0xfd00, 0, 0, 0, 0x212, 0x4b00, 0xaff, 0x8587);
 
-  }
-  else
-  	printf("Les donnes viennent pas du bon sender\n");
+	 if(ipaddrSend.u16[6] == ipaddrSender.u16[6] && ipaddrSend.u16[5] == ipaddrSender.u16[5])
+	 {
+	    printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
+	    if(*data == 0)
+	    {
+	      leds_off(LEDS_BLUE);
+	      printf("Data: %d", data);
+	    }
+	    else if (*data == 1)
+	    {
+	      leds_on(LEDS_BLUE);
+	      printf("Data: %d", data);
+	    }
+
+	 }
+	 else if(ipaddrSendLaunchPad.u16[6] == ipaddrSender.u16[6] && ipaddrSendLaunchPad.u16[5] == ipaddrSender.u16[5])
+	 {
+	   printf("Recu de controlleur LaunchPad. Nouveaux Status: %d\n",*data);
+	       if(*data == 0)
+	       {
+		 leds_off(LEDS_GREEN);
+		 printf("Data: %d", data);
+	       }
+	       else if (*data == 1)
+	       {
+		 leds_on(LEDS_GREEN);
+		 printf("Data: %d", data);
+	       }
+	   }
+	 else
+	 {
+	   printf("Recu Unknown\r\n");
+	 }
 }
 /*---------------------------------------------------------------------------*/
 static uip_ipaddr_t *

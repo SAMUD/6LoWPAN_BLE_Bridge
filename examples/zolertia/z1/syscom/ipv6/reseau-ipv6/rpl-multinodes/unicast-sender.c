@@ -57,8 +57,6 @@
 
 static struct simple_udp_connection unicast_connection;
 static uip_ipaddr_t ipaddrLED;
-static uip_ipaddr_t ipaddrServ;
-
 static uint8_t LEDStatus = 0;
 
 /*---------------------------------------------------------------------------*/
@@ -106,8 +104,7 @@ set_global_address(void)
   uint8_t state;
 
   uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 1);
-  uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 3);
-  uip_ip6addr(&ipaddrServ, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 6);
+  uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x64);
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
@@ -117,13 +114,13 @@ set_global_address(void)
     if(uip_ds6_if.addr_list[i].isused &&
        (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
       uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
-      printf("\n%d\n",i);
+      printf("\r\n%d\r\n",i);
     }
   }
-  uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0,uip_ds6_if.addr_list[1].ipaddr.u8[15] + 2 );
+  //uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0,uip_ds6_if.addr_list[1].ipaddr.u8[15] + 2 );
   printf("on va envoyer a: ");
   uip_debug_ipaddr_print(&ipaddrLED);
-  printf("\n");
+  printf("\r\n");
 
 
 }
@@ -132,7 +129,6 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
 {
 
   uip_ipaddr_t *addr = &ipaddrLED;
-  uip_ipaddr_t *addrServ = &ipaddrServ;
 
 	PROCESS_BEGIN();
 
@@ -160,7 +156,6 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
 		printf("\n");
 		printf("LED Status now: %d\n", LEDStatus);
 		simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
-		simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addrServ);
   }
 
   PROCESS_END();

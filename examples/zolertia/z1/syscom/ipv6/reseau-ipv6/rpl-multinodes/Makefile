@@ -1,6 +1,6 @@
 all: broadcast-example unicast-sender unicast-receiver
 APPS=servreg-hack
-CONTIKI=/home/user/contiki
+CONTIKI=/home/samuel/contiki
 TARGET=z1
 
 CONTIKI_WITH_IPV6 = 1

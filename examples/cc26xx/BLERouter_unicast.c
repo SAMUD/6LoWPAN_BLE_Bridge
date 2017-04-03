@@ -41,19 +41,9 @@ Hello * Copyright (c) 2014, Texas Instruments Incorporated - http://www.ti.com/
  *
  *   Example project demonstrating the CC26xx platforms
  *
- *   This example will work for the following boards:
- *   - srf06-cc26xx: SmartRF06EB + CC26XX EM
- *   - sensortag-cc26xx: CC26XX sensortag
+ *   This example will work for the following board:
  *   - The CC2650 LaunchPad
  *
- *   By default, the example will build for the srf06-cc26xx board. To switch
- *   between platforms:
- *   - make clean
- *   - make BOARD=sensortag-cc26xx savetarget
- *
- *     or
- *
- *     make BOARD=srf06-cc26xx savetarget
  *
  *   This is an IPv6/RPL-enabled example. Thus, if you have a border router in
  *   your installation (same RDC layer, same PAN ID and RF channel), you should
@@ -68,17 +58,6 @@ Hello * Copyright (c) 2014, Texas Instruments Incorporated - http://www.ti.com/
  * - etimer/clock : Every CC26XX_DEMO_LOOP_INTERVAL clock ticks the LED defined
  *                  as CC26XX_DEMO_LEDS_PERIODIC will toggle and the device
  *                  will print out readings from some supported sensors
- * - sensors      : Some sensortag sensors are read asynchronously (see sensor
- *                  documentation). For those, this example will print out
- *                  readings in a staggered fashion at a random interval
- * - Buttons      : CC26XX_DEMO_SENSOR_1 button will toggle CC26XX_DEMO_LEDS_BUTTON
- *                - CC26XX_DEMO_SENSOR_2 turns on LEDS_REBOOT and causes a
- *                  watchdog reboot
- *                - The remaining buttons will just print something
- *                - The example also shows how to retrieve the duration of a
- *                  button press (in ticks). The driver will generate a
- *                  sensors_changed event upon button release
- * - Reed Relay   : Will toggle the sensortag buzzer on/off
  *
  * @{
  *
@@ -94,7 +73,6 @@ Hello * Copyright (c) 2014, Texas Instruments Incorporated - http://www.ti.com/
 #include "button-sensor.h"
 #include "batmon-sensor.h"
 #include "board-peripherals.h"
-//#include "rf-core/rf-ble.h"
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-debug.h"
@@ -107,31 +85,21 @@ Hello * Copyright (c) 2014, Texas Instruments Incorporated - http://www.ti.com/
 #include <stdio.h>
 #include <stdint.h>
 /*---------------------------------------------------------------------------*/
-#define CC26XX_DEMO_LOOP_INTERVAL       (CLOCK_SECOND * 20)
+#define CC26XX_DEMO_LOOP_INTERVAL       (CLOCK_SECOND * 5)
 #define CC26XX_DEMO_LEDS_PERIODIC       LEDS_YELLOW
 #define CC26XX_DEMO_LEDS_BUTTON         LEDS_RED
 #define CC26XX_DEMO_LEDS_REBOOT         LEDS_ALL
 /*---------------------------------------------------------------------------*/
-#define CC26XX_DEMO_SENSOR_NONE         (void *)0xFFFFFFFF
-
-#define CC26XX_DEMO_SENSOR_1     &button_left_sensor
-#define CC26XX_DEMO_SENSOR_2     &button_right_sensor
-
-#define CC26XX_DEMO_SENSOR_3     CC26XX_DEMO_SENSOR_NONE
-#define CC26XX_DEMO_SENSOR_4     CC26XX_DEMO_SENSOR_NONE
-#define CC26XX_DEMO_SENSOR_5     CC26XX_DEMO_SENSOR_NONE
-
 #define UDP_PORT 1234
 #define SERVICE_ID 190
 #define myAdress 2
 
-#define SEND_INTERVAL		(60 * CLOCK_SECOND)
-#define SEND_TIME		(random_rand() % (SEND_INTERVAL))
+#define BOARD_NAME "XADA-BLE"
+
 
 static struct simple_udp_connection unicast_connection;
-static uip_ipaddr_t ipaddrLED;
-static struct etimer et;
-
+static uip_ipaddr_t ipaddrLED;		//IP Adress of the reciving node
+static struct etimer et;		//sending Timer
 
 PROCESS(cc26xx_demo_process, "cc26xx demo process");
 AUTOSTART_PROCESSES(&cc26xx_demo_process);
@@ -144,143 +112,110 @@ static void receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+	//In case someone sends some data	
 	printf("Data received from ");
 	uip_debug_ipaddr_print(sender_addr);
-	printf(" on port %d from port %d with length %d: '%s'\n",receiver_port, sender_port, datalen, data);
+	printf(" on port %d from port %d with length %d: '%s'\r\n",receiver_port, sender_port, datalen, data);
 }
 /*---------------------------------------------------------------------------*/
 static void set_global_address(void)
 {
-  uip_ipaddr_t ipaddr;
-  int i;
-  uint8_t state;
+	uip_ipaddr_t ipaddr;
+	int i;
+	uint8_t state;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x68);
-  uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x64);
+	//IP-Adress of Router
+	uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x01);
+	//IP-Adress of receiving node
+	uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x64);
 
-  uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
-  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+	uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+	uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
-  printf("IPv6 addresses: ");
-  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
-    state = uip_ds6_if.addr_list[i].state;
-    if(uip_ds6_if.addr_list[i].isused &&
-       (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
-      uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
-      printf("\n%d\n",i);
-    }
-  }
-  //uip_ip6addr(&ipaddrLED, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0,uip_ds6_if.addr_list[1].ipaddr.u8[15] + 2 );
-  printf("on va envoyer a: ");
-  uip_debug_ipaddr_print(&ipaddrLED);
-  printf("\n");
-
-
+	printf("IPv6 addresses: ");
+	for(i = 0; i < UIP_DS6_ADDR_NB; i++)
+	{
+		state = uip_ds6_if.addr_list[i].state;
+		if(uip_ds6_if.addr_list[i].isused && (state == ADDR_TENTATIVE || state == ADDR_PREFERRED))
+		{
+			uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
+			printf("\r\n%d\n",i);
+		}
+	}
+	
+	//Printf te reciving IP-Adress
+	printf("on va envoyer a: ");
+	uip_debug_ipaddr_print(&ipaddrLED);
+	printf("\r\n");
 }
 /*---------------------------------------------------------------------------*/
 static void
 get_sync_sensor_readings(void)
 {
-  int value;
+	int value;
 
-  printf("-----------------------------------------\n");
+	printf("-----------------------------------------\r\n");
 
-  value = batmon_sensor.value(BATMON_SENSOR_TYPE_TEMP);
-  printf("Bat: Temp=%d C\n", value);
+	value = batmon_sensor.value(BATMON_SENSOR_TYPE_TEMP);
+	printf("Bat: Temp=%d C\r\n", value);
 
-  value = batmon_sensor.value(BATMON_SENSOR_TYPE_VOLT);
-  printf("Bat: Volt=%d mV\n", (value * 125) >> 5);
+	value = batmon_sensor.value(BATMON_SENSOR_TYPE_VOLT);
+	printf("Bat: Volt=%d mV\r\n", (value * 125) >> 5);
 
-  return;
+	return;
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(cc26xx_demo_process, ev, data)
 {
 
-  static uint8_t LEDStatus = 0;
-  static uip_ipaddr_t *addr = &ipaddrLED;
+	static uint8_t LEDStatus = 0;
+	static uip_ipaddr_t *addr = &ipaddrLED;
 
+	PROCESS_BEGIN();
 
-  PROCESS_BEGIN();
+	printf("CC26XX uIPv6 and BLE demo\r\n");
 
-  printf("CC26XX uIPv6 and BLE demo\n");
+	SENSORS_ACTIVATE(batmon_sensor);
 
-  SENSORS_ACTIVATE(batmon_sensor);
+	// Init the BLE advertisement
+	rf_ble_beacond_config(0, BOARD_NAME);
+	rf_ble_beacond_start();
 
-  /* Init the BLE advertisement daemon */
-  //rf_ble_beacond_config(0, BOARD_STRING);
-  //rf_ble_beacond_start();
+	//Init uIP
+	set_global_address();
+	simple_udp_register(&unicast_connection, UDP_PORT,NULL, UDP_PORT, receiver);
 
-  //Init uIP
-  set_global_address();
-  simple_udp_register(&unicast_connection, UDP_PORT,
-                        NULL, UDP_PORT, receiver);
+	etimer_set(&et, CC26XX_DEMO_LOOP_INTERVAL);
 
-  etimer_set(&et, CC26XX_DEMO_LOOP_INTERVAL);
+	while(1) {
 
-  while(1) {
+		PROCESS_YIELD();
 
-    PROCESS_YIELD();
+		if(ev == PROCESS_EVENT_TIMER)
+		{
+			if(data == &et)
+			{
+				leds_toggle(CC26XX_DEMO_LEDS_PERIODIC);
+				get_sync_sensor_readings();
+				
+				//send data with the new LED-Status
+				if (LEDStatus==0)
+	  				LEDStatus = 1;
+				else
+	  				LEDStatus = 0;
 
-    if(ev == PROCESS_EVENT_TIMER) {
-      if(data == &et)
-      {
-        leds_toggle(CC26XX_DEMO_LEDS_PERIODIC);
+	  			printf("Sending unicast to ");
+	  			uip_debug_ipaddr_print(addr);
+	  			printf("\r\n");
+	  			printf("LED Status now: %d\r\n", LEDStatus);
+	  			simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
+				
+				// reset timer
+				etimer_set(&et, CC26XX_DEMO_LOOP_INTERVAL);
+			}
+		}
 
-        get_sync_sensor_readings();
+	}
 
-        //send data
-        if (LEDStatus==0)
-          		LEDStatus = 1;
-        else
-          		LEDStatus = 0;
-
-				printf("Sending unicast to ");
-				uip_debug_ipaddr_print(addr);
-				printf("\n");
-				printf("LED Status now: %d\n", LEDStatus);
-				simple_udp_sendto(&unicast_connection, &LEDStatus, sizeof(LEDStatus) + 1, addr);
-
-        etimer_set(&et, CC26XX_DEMO_LOOP_INTERVAL);
-      }
-    }
-    /*else if(ev == sensors_event)
-    {
-      if(data == CC26XX_DEMO_SENSOR_1)
-      {
-        printf("Left: Pin %d, press duration %d clock ticks\n",
-               (CC26XX_DEMO_SENSOR_1)->value(BUTTON_SENSOR_VALUE_STATE),
-               (CC26XX_DEMO_SENSOR_1)->value(BUTTON_SENSOR_VALUE_DURATION));
-
-        if((CC26XX_DEMO_SENSOR_1)->value(BUTTON_SENSOR_VALUE_DURATION) >
-           CLOCK_SECOND)
-          {
-							printf("Long button press!\n");
-					}
-
-        leds_toggle(CC26XX_DEMO_LEDS_BUTTON);
-      }
-      else if(data == CC26XX_DEMO_SENSOR_2)
-      {
-        leds_on(CC26XX_DEMO_LEDS_REBOOT);
-        watchdog_reboot();
-      }
-      else if(data == CC26XX_DEMO_SENSOR_3)
-      {
-        printf("Up\n");
-      }
-      else if(data == CC26XX_DEMO_SENSOR_4)
-      {
-        printf("Down\n");
-      }
-    }*/
-  }
-
-  PROCESS_END();
+	PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/
-/**
- * @}
- * @}
- * @}
- */
