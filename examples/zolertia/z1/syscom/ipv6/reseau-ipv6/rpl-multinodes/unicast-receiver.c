@@ -69,54 +69,54 @@ receiver(struct simple_udp_connection *c,
          uint16_t receiver_port,
          const uint8_t *data,
          uint16_t datalen)
+
 {
-	  printf("Data received from ");
-	  uip_debug_ipaddr_print(sender_addr);
-	  printf(" on port %d from port %d with length %d: '%s'\n",
-          receiver_port, sender_port, datalen, data);
+  printf("Data received from ");
+  uip_debug_ipaddr_print(sender_addr);
+  printf(" on port %d from port %d with length %d: '%s'\n",
+         receiver_port, sender_port, datalen, data);
 
-	  //generate a temp adress
-	  uip_ipaddr_t ipaddrSend;
-	  uip_ipaddr_t ipaddrSendLaunchPad;
-	  uip_ipaddr_t ipaddrSender = *sender_addr;
+  //Création des adresses Ip
+  uip_ipaddr_t ipaddrSend;	//Adresse Ip de la carte zolertia
+  uip_ipaddr_t ipaddrSendLaunchPad;		//Adresse Ip du LaunchPad
+  uip_ipaddr_t ipaddrSender = *sender_addr;		//Adresse Ip pour savoir de qui vient le message
 
-	  uip_ip6addr(&ipaddrSend, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0xb);
+  uip_ip6addr(&ipaddrSend, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0xb);		//Test de reception de la carte zolertia
 
-	  uip_ip6addr(&ipaddrSendLaunchPad, 0xfd00, 0, 0, 0, 0x212, 0x4b00, 0xaff, 0x8587);
+  uip_ip6addr(&ipaddrSendLaunchPad, 0xfd00, 0, 0, 0, 0x212, 0x4b00, 0xaff, 0x8587);		//Test de reception du LanchPad
 
-	 if(ipaddrSend.u16[6] == ipaddrSender.u16[6] && ipaddrSend.u16[5] == ipaddrSender.u16[5])
-	 {
-	    printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
-	    if(*data == 0)
-	    {
-	      leds_off(LEDS_BLUE);
-	      printf("Data: %d", data);
-	    }
-	    else if (*data == 1)
-	    {
-	      leds_on(LEDS_BLUE);
-	      printf("Data: %d", data);
-	    }
-
-	 }
-	 else if(ipaddrSendLaunchPad.u16[6] == ipaddrSender.u16[6] && ipaddrSendLaunchPad.u16[5] == ipaddrSender.u16[5])
-	 {
-	   printf("Recu de controlleur LaunchPad. Nouveaux Status: %d\n",*data);
-	       if(*data == 0)
-	       {
-		 leds_off(LEDS_GREEN);
-		 printf("Data: %d", data);
-	       }
-	       else if (*data == 1)
-	       {
-		 leds_on(LEDS_GREEN);
-		 printf("Data: %d", data);
-	       }
-	   }
-	 else
-	 {
-	   printf("Recu Unknown\r\n");
-	 }
+  if(ipaddrSend.u16[6] == ipaddrSender.u16[6] && ipaddrSend.u16[5] == ipaddrSender.u16[5])  //Si on reçoit des données de la carte Zolertia on effectue le code
+	{
+  		printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
+  		if(*data == 0)  //Si on reçoit un 0 on eteint la led Bleue
+  		{
+  				leds_off(LEDS_BLUE);
+  				printf("Data: %d", data);
+  		}
+  		else if (*data == 1)  //Si on reçoit un 1 on allume la led Bleue
+  		{
+  				leds_on(LEDS_BLUE);
+  				printf("Data: %d", data);
+  		}
+	}
+  else if(ipaddrSendLaunchPad.u16[6] == ipaddrSender.u16[6] && ipaddrSendLaunchPad.u16[5] == ipaddrSender.u16[5]) //Si on reçoit les données du LaunchPad on effectue le code
+  {
+  		printf("Recu de controlleur LaunchPad. Nouveaux Status: %d\n",*data);
+	   	if(*data == 0)    //Si on reçoit un 0 on eteint la led Verte
+	   	{
+	   			leds_off(LEDS_GREEN);
+	   			printf("Data: %d", data);
+	   	}
+	   	else if (*data == 1)		//Si on reçoit un 1 on allume la led Verte
+	   	{
+	   			leds_on(LEDS_GREEN);
+	   			printf("Data: %d", data);
+	   	}
+	}
+  else
+  {
+  		printf("Recu Unknown\r\n");   //Si l'adresse est inconnue, on l'indique
+  }
 }
 /*---------------------------------------------------------------------------*/
 static uip_ipaddr_t *
@@ -126,7 +126,7 @@ set_global_address(void)
   int i;
   uint8_t state;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 1);
+  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0xC30C, 0, 0, 0x01);
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
@@ -154,14 +154,17 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   set_global_address();
 
+
   //create_rpl_dag(ipaddr);
 
   //servreg_hack_register(SERVICE_ID, ipaddr);
 
+
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
 
-  while(1) {
+  while(1)
+  {
     PROCESS_WAIT_EVENT();
   }
   PROCESS_END();
