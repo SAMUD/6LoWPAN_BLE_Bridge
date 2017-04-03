@@ -86,36 +86,36 @@ receiver(struct simple_udp_connection *c,
   uip_ip6addr(&ipaddrSendLaunchPad, 0xfd00, 0, 0, 0, 0x212, 0x4b00, 0xaff, 0x8587);		//Test de reception du LanchPad
 
   if(ipaddrSend.u16[6] == ipaddrSender.u16[6] && ipaddrSend.u16[5] == ipaddrSender.u16[5])  //Si on reçoit des données de la carte Zolertia on effectue le code
-	{
-  		printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
-  		if(*data == 0)  //Si on reçoit un 0 on eteint la led Bleue
-  		{
-  				leds_off(LEDS_BLUE);
-  				printf("Data: %d", data);
-  		}
-  		else if (*data == 1)  //Si on reçoit un 1 on allume la led Bleue
-  		{
-  				leds_on(LEDS_BLUE);
-  				printf("Data: %d", data);
-  		}
-	}
+  {
+  	printf("Recu de controlleur LED. Nouveaux Status: %d\n",*data);
+  	if(*data == 0)  //Si on reçoit un 0 on eteint la led Bleue
+  	{
+  		leds_off(LEDS_BLUE);
+  		printf("Data: %d", data);
+  	}
+  	else if (*data == 1)  //Si on reçoit un 1 on allume la led Bleue
+  	{
+  		leds_on(LEDS_BLUE);
+  		printf("Data: %d", data);
+  	}
+  }
   else if(ipaddrSendLaunchPad.u16[6] == ipaddrSender.u16[6] && ipaddrSendLaunchPad.u16[5] == ipaddrSender.u16[5]) //Si on reçoit les données du LaunchPad on effectue le code
   {
-  		printf("Recu de controlleur LaunchPad. Nouveaux Status: %d\n",*data);
-	   	if(*data == 0)    //Si on reçoit un 0 on eteint la led Verte
-	   	{
-	   			leds_off(LEDS_GREEN);
-	   			printf("Data: %d", data);
-	   	}
-	   	else if (*data == 1)		//Si on reçoit un 1 on allume la led Verte
-	   	{
-	   			leds_on(LEDS_GREEN);
-	   			printf("Data: %d", data);
-	   	}
+  	printf("Recu de controlleur LaunchPad. Nouveaux Status: %d\n",*data);
+ 	if(*data == 0)    //Si on reçoit un 0 on eteint la led Verte
+	{
+	   	leds_off(LEDS_GREEN);
+	   	printf("Data: %d", data);
 	}
+	else if (*data == 1)		//Si on reçoit un 1 on allume la led Verte
+	{
+	   	leds_on(LEDS_GREEN);
+	   	printf("Data: %d", data);
+	}
+  }
   else
   {
-  		printf("Recu Unknown\r\n");   //Si l'adresse est inconnue, on l'indique
+  	printf("Recu Unknown\r\n");   //Si l'adresse est inconnue, on l'indique
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -146,22 +146,12 @@ set_global_address(void)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(unicast_receiver_process, ev, data)
 {
-  //uip_ipaddr_t *ipaddr;
-
+ 
   PROCESS_BEGIN();
-
-  //servreg_hack_init();
 
   set_global_address();
 
-
-  //create_rpl_dag(ipaddr);
-
-  //servreg_hack_register(SERVICE_ID, ipaddr);
-
-
-  simple_udp_register(&unicast_connection, UDP_PORT,
-                      NULL, UDP_PORT, receiver);
+  simple_udp_register(&unicast_connection, UDP_PORT, NULL, UDP_PORT, receiver);
 
   while(1)
   {
